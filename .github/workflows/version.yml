@@ -1,0 +1,61 @@
+name: Version Bump
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    name: Version Bump
+    steps:
+      - name: GitHub App token
+        id: github_app_token
+        uses: tibdex/github-app-token@v1.5.0
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          installation_id: 22958780
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Increment version in package.json, test-and-build.yml, and opensearch_dashboards.json
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION=$(node -p "const semver = require('semver'); semver.inc('$CURRENT_VERSION', 'minor')")
+          sed -i'' -e "s/OPENSEARCH_PLUGIN_VERSION: $CURRENT_VERSION/OPENSEARCH_PLUGIN_VERSION: $NEW_VERSION/g" .github/workflows/test-and-build.yml
+          sed -i'' -e "s/\"version\": \"$CURRENT_VERSION\",/\"version\": \"$NEW_VERSION\",/g" opensearch_dashboards.json
+          sed -i'' -e "s/\"opensearchDashboardsVersion\": \"$CURRENT_VERSION\",/\"opensearchDashboardsVersion\": \"$NEW_VERSION\",/g" opensearch_dashboards.json
+          sed -i'' -e "s/\"version\": \"$CURRENT_VERSION\",/\"version\": \"$NEW_VERSION\",/g" package.json
+        with:
+          github_token: ${{ steps.github_app_token.outputs.token }}
+
+      - name: Commit version bump changes
+        run: |
+          git checkout -b auto-version-bumping
+          git add .
+          git commit -m "Bump version to $NEW_VERSION"
+        with:
+          github_token: ${{ steps.github_app_token.outputs.token }}
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ steps.github_app_token.outputs.token }}
+
+      - name: Create Pull Request for 2.x Branch
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Bump version to $NEW_VERSION"
+          commit-message: "Bump version to $NEW_VERSION"
+          branch: auto-version-bumping
+          base: 2.x
+          body: "This PR bumps the version number in package.json, test-and-build.yml, and opensearch_dashboards.json from $CURRENT_VERSION to $NEW_VERSION."
+          draft: false
+        if: startsWith(github.ref, 'refs/tags/v') && github.ref == 'refs/tags/v'${{ steps.version-bump.outputs.new_tag_suffix }}
