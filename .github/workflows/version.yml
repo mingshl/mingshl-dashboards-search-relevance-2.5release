@@ -17,7 +17,6 @@ jobs:
       - name: Fetch Tag and Version Information
         id: version-bump
         run: |
-          TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --max-count=1))
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           MAJOR_VERSION=$(echo $CURRENT_VERSION | cut -d. -f1)
           MINOR_VERSION=$(echo $CURRENT_VERSION | cut -d. -f2)
@@ -58,4 +57,4 @@ jobs:
             autocut
           title: '[AUTO] Increment version to ${{ env.NEW_VERSION }}.'
           body: |
-            I've noticed that a new tag ${{ env.TAG }} was pushed, and incremented the version from ${{ env.CURRENT_VERSION }} to ${{ env.NEW_VERSION }}.
+            I've noticed that a new tag ${{ env.CURRENT_VERSION }} was pushed, and incremented the version from ${{ env.CURRENT_VERSION }} to ${{ env.NEW_VERSION }}.
